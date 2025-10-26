@@ -1,0 +1,15 @@
+Do file Streamlit cần các thư viện bổ sung như pandas và json, bạn cần đảm bảo môi trường đã cài đặt chúng:
+1. .venv\Scripts\activate
+pip install streamlit python-docx pandas openpyxl
+pip install streamlit python-docx pandas openpyxl reportlab xlsxwriter
+//pip install --upgrade streamlit python-docx pandas xlsxwriter
+pip install xlsxwriter
+
+2. pip install streamlit
+3. streamlit run app.py     python -m streamlit run app.py
+...........
+mình sử dụng streamlit để deploy đó bạn nên không cần mua tên miền. Hãy hướng dẫn theo cách này nha
+.........
+Trong hình ảnh là github mình vừa mới khởi tạo. Bạn hãy hướng dẫn mình đẩy mã nguồn hệ thống thi trực tuyến lên nhé
+toke: quiz-app-deploy
+token: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
