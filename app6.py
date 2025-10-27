@@ -216,7 +216,8 @@ def student_ui():
                 if os.path.exists(SCORES_FILE):
                     df = pd.read_excel(SCORES_FILE)
                     if df.columns.tolist() != EXPECTED_COLUMNS:
-                        df = pd.DataFrame(columns=EXPECTED_COLUMNS)
+                        # Nếu cấu trúc file bị thay đổi (do lỗi), khởi tạo lại header
+                        df = pd.DataFrame(columns=EXPECTED_COLUMNS) 
                 else:
                     df = pd.DataFrame(columns=EXPECTED_COLUMNS)
                     
@@ -227,10 +228,12 @@ def student_ui():
                     "Tổng Số Câu": total,
                     "Thời Gian Nộp Bài": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
+                # Sử dụng pd.concat thay vì df.append
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 df.to_excel(SCORES_FILE, index=False)
             except Exception as e:
-                st.error(f"Lưu kết quả thất bại: {e}")
+                # Bắt lỗi lưu file khi học sinh nộp bài
+                st.error(f"Lỗi khi lưu kết quả bài thi vào bảng điểm: {e}")
 
             st.session_state["quiz_submitted"] = True 
             st.session_state["doing_quiz"] = False
@@ -311,7 +314,7 @@ def student_ui():
         return 
         
 # =========================================================================
-# ====== Giao diện Giáo viên (GIỮ NGUYÊN) ======
+# ====== Giao diện Giáo viên (ĐÃ CHỈNH SỬA) ======
 # =========================================================================
 def admin_ui():
     
@@ -487,29 +490,51 @@ def admin_ui():
                 st.error("⚠️ **Lỗi:** Có câu hỏi không hợp lệ (thiếu nội dung, thiếu lựa chọn, hoặc đáp án không khớp). Vui lòng kiểm tra lại.")
 
     # --------------------------------------------------------
-    # KHU VỰC BẢNG ĐIỂM (4) và XÓA BẢNG ĐIỂM (5) - (GIỮ NGUYÊN)
+    # KHU VỰC BẢNG ĐIỂM (4) - ĐÃ CHỈNH SỬA XỬ LÝ LỖI
     # --------------------------------------------------------
     st.subheader("4️⃣ Xem & Tải Bảng Điểm")
     
-    if os.path.exists(SCORES_FILE) and os.path.getsize(SCORES_FILE) > 0:
+    df = pd.DataFrame(columns=EXPECTED_COLUMNS) # Khởi tạo DataFrame rỗng mặc định
+    
+    # Thử đọc file Excel nếu nó tồn tại
+    if os.path.exists(SCORES_FILE):
         try:
+            # CHỈ ĐỌC FILE TỒN TẠI
             df = pd.read_excel(SCORES_FILE)
-            if not df.empty:
-                df["% Điểm (Thang 10)"] = round(df["Điểm"] / df["Tổng Số Câu"] * 10, 2)
-                st.dataframe(df, use_container_width=True)
-                out = BytesIO()
-                with pd.ExcelWriter(out, engine="xlsxwriter") as w:
-                    df.to_excel(w, index=False)
-                st.download_button("📥 Tải Bảng Điểm", out.getvalue(),
-                    file_name=f"BangDiem_{dt.date.today().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            else:
-                st.info("Chưa có kết quả nào.")
+            
+            # Kiểm tra cấu trúc cột
+            if df.columns.tolist() != EXPECTED_COLUMNS:
+                 # Nếu cấu trúc sai, gán lại DataFrame rỗng
+                 st.warning("⚠️ **Lỗi Cấu trúc:** Cấu trúc file bảng điểm bị thay đổi. Đang hiển thị dữ liệu trống.")
+                 df = pd.DataFrame(columns=EXPECTED_COLUMNS) 
+             
         except Exception as e:
-            st.error(f"Lỗi khi đọc file bảng điểm hoặc tạo file tải xuống: {e}")
+            # Bắt lỗi đọc file, bao gồm lỗi "Bad magic number"
+            st.error(f"❌ Lỗi khi đọc file bảng điểm: **{e}**")
+            st.warning("Hệ thống đã phát hiện file bảng điểm bị lỗi hoặc hỏng. Vui lòng **Xóa Dữ Liệu Bảng Điểm** (mục 5) để tạo lại file mới.")
+            # Dùng df rỗng đã khởi tạo ở trên để tránh lỗi tiếp theo
+            df = pd.DataFrame(columns=EXPECTED_COLUMNS) 
+
+    # Chỉ xử lý và hiển thị nếu DataFrame KHÔNG rỗng
+    if not df.empty:
+        df["% Điểm (Thang 10)"] = round(df["Điểm"] / df["Tổng Số Câu"] * 10, 2)
+        st.dataframe(df, use_container_width=True)
+        
+        # Tạo và hiển thị nút tải xuống
+        out = BytesIO()
+        try:
+            with pd.ExcelWriter(out, engine="xlsxwriter") as w:
+                df.to_excel(w, index=False)
+            st.download_button("📥 Tải Bảng Điểm", out.getvalue(),
+                file_name=f"BangDiem_{dt.date.today().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        except Exception as e:
+            # Bắt lỗi khi tạo file tải xuống (nếu có)
+            st.error(f"Lỗi khi tạo file tải xuống: {e}")
             
     else:
-        st.info("Chưa có file bảng điểm.")
+        # Hiển thị thông báo khi df rỗng hoặc khi file chưa tồn tại
+        st.info("Chưa có kết quả nào.")
         
     st.markdown("---")
     
