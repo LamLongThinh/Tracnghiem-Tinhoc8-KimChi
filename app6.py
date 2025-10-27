@@ -5,25 +5,40 @@ import datetime as dt
 import re, json, pandas as pd, os, random, time
 from io import BytesIO
 import base64
+import gspread
+from google.oauth2.service_account import Credentials  # ✅ Dùng OAuth2 chính thức
 
-# ====== Cấu hình cơ bản (GIỮ NGUYÊN) ======
+# ====== Cấu hình ======
 QUIZ_FILE = "questions.json"
-SCORES_FILE = "scores.xlsx"
+GSHEETS_ID = "1t2DU1adu4ysYuld03gwYQarmu3UvYuJvPByBRH960G4"
+GSHEETS_WORKSHEET_NAME = "Sheet1"
 ADMIN_PASSWORD = "admin123"
 EXPECTED_COLUMNS = ["Tên Học Sinh", "Lớp", "Điểm", "Tổng Số Câu", "Thời Gian Nộp Bài"]
 DEFAULT_TIME_LIMIT = 45
 
-st.markdown(
-    """
-    <h2 style='text-align: center; font-weight: 800;'>
-        📝 TRẮC NGHIỆM – TIN HỌC 8
-    </h2>
-    <h4 style='text-align: center; color: gray; font-weight: 700;'>
-        KIẾN THỨC TRỌNG TÂM GIỮA HỌC KÌ 1 NĂM HỌC 2025–2026
-    </h4>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<h2 style='text-align: center; font-weight: 800;'>📝 TRẮC NGHIỆM – TIN HỌC 8</h2>
+<h4 style='text-align: center; color: gray; font-weight: 700;'>
+    KIẾN THỨC TRỌNG TÂM GIỮA HỌC KÌ 1 NĂM HỌC 2025–2026
+</h4>
+""", unsafe_allow_html=True)
+
+# ====== HÀM KẾT NỐI GOOGLE SHEETS ======
+@st.cache_resource(ttl=3600)
+def get_gsheets_client():
+    """Tạo kết nối Gspread bằng Google Credentials từ st.secrets."""
+    try:
+        info = st.secrets["gcp_service_account"]
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        creds = Credentials.from_service_account_info(info, scopes=scopes)
+        return gspread.authorize(creds)
+    except Exception as e:
+        st.error(f"❌ Không thể kết nối Google Sheets. Kiểm tra lại secrets: {e}")
+        return None
+
 # ====== Khởi tạo file bảng điểm (GIỮ NGUYÊN) ======
 def init_scores_file():
     if not os.path.exists(SCORES_FILE):
